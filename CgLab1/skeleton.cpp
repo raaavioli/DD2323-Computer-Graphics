@@ -27,32 +27,43 @@ SDL_Surface* screen;
 // --------------------------------------------------------
 // FUNCTION DECLARATIONS
 
-void Draw();
+void Draw(vector<vec3> leftSide, vector<vec3> rightSide);
+void Interpolate(float a, float b, vector<float>& result);
+void Interpolate(vec3 a, vec3 b, vector<vec3>& result);
 
 // --------------------------------------------------------
 // FUNCTION DEFINITIONS
 
 int main( int argc, char* argv[] )
 {
+	vec3 topLeft(1, 0, 0);
+	vec3 topRight(0, 0, 1);
+	vec3 bottomLeft(1, 1, 0);
+	vec3 bottomRight(0, 1, 0);
+	vector<vec3> leftSide (SCREEN_HEIGHT);
+	vector<vec3> rightSide (SCREEN_HEIGHT);
+	Interpolate(topLeft, bottomLeft, leftSide);
+	Interpolate(topRight, bottomRight, rightSide);
+		
 	screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT );
 	while( NoQuitMessageSDL() )
 	{
-		Draw();
+		Draw(leftSide, rightSide);
 	}
 	SDL_SaveBMP( screen, "screenshot.bmp" );
 	return 0;
 }
 
-void Draw()
+void Draw(vector<vec3> leftSide, vector<vec3> rightSide)
 {
 
 	for( int y=0; y<SCREEN_HEIGHT; ++y )
 	{
-
+		vector<vec3> rowColors(SCREEN_WIDTH);
+		Interpolate(leftSide[y], rightSide[y], rowColors);
 		for( int x=0; x<SCREEN_WIDTH; ++x )
 		{
-			vec3 color(0,0,1);
-			PutPixelSDL( screen, x, y, color );
+			PutPixelSDL( screen, x, y, rowColors[x] );
 		}
 	}
 
@@ -60,4 +71,24 @@ void Draw()
 		SDL_UnlockSurface(screen);
 
 	SDL_UpdateRect( screen, 0, 0, 0, 0 );
+}
+
+void Interpolate (float a, float b, vector<float>& result) {
+	// Inclusive both a and b
+	const int size = result.size() - 1;
+	for ( int i = 0; i <= size; i++ ) {
+		float p = i / (float) size;
+		result[i] = (1 - p) * a + p * b;
+	}	
+}
+
+void Interpolate (vec3 a, vec3 b, vector<vec3>& result) {
+	// Inclusive elements in a and b
+	const int size = result.size() - 1;
+	for ( int i = 0; i <= size; i++) {
+		float p = i / (float) size;
+		result[i].x = (1 - p) * a.x + p * b.x;
+		result[i].y = (1 - p) * a.y + p * b.y;
+		result[i].z = (1 - p) * a.z + p * b.z;
+	}
 }
