@@ -15,7 +15,7 @@ find_package (SDL2 REQUIRED)
 message(STATUS "Lib: ${SDL2_LIBRARIES} , Include: ${SDL2_INCLUDE_DIRS}")
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}/glm
+  ${CMAKE_SOURCE_DIR}/../glm
   ${SDL2_INCLUDE_DIRS}
 )
 

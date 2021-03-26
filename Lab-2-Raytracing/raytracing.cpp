@@ -85,7 +85,7 @@ void Update(Camera& camera, Light& light)
 	// Compute frame time:
 	int t2 = SDL_GetTicks();
 	float dt = float(t2 - current_time);
-	//cout << "Render time: " << dt << " ms." << endl;
+	cout << "Render time: " << dt << " ms." << endl;
 	current_time = t2;
 	SDL_PumpEvents();
 	const Uint8* keystate = SDL_GetKeyboardState(NULL);
