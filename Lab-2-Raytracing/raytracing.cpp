@@ -64,7 +64,7 @@ int main( int argc, char* argv[] )
 	screen = new SDL2Aux(SCREEN_WIDTH, SCREEN_HEIGHT);
 	current_time = SDL_GetTicks();	// Set start value for timer.
 
-	Light light = {.position = vec3(0.0f, 0.0f, 0.0), .color = vec3(10.f, 10.f, 10.f)};
+	Light light = {.position = vec3(0.0f, 0.0f, 0.0), .color = vec3(11.f, 11.f, 11.f)};
 	Camera camera = {.position = vec3(0.0, 0.0, -2.0), .yaw = 0.0f};
 
 	vector<Triangle> triangles;
@@ -134,7 +134,10 @@ void Draw(vector<Triangle>& triangles, Camera& camera, const Light& light)
 				.d = camera.getRotation() * glm::normalize(vec3(x - SCREEN_WIDTH / 2, y - SCREEN_HEIGHT / 2, SCREEN_WIDTH / 2))
 			};
 			if (ClosestIntersection(ray, triangles, intersection)) {
+				vec3 indirect_light(0.3, 0.3, 0.3);
 				vec3 color = DirectLight(light, intersection, triangles);
+				color += indirect_light;
+				color *= triangles[intersection.triangleIndex].color;
 				screen->putPixel(x, y, color);
 			} else {
 				screen->putPixel(x, y, vec3(0.0, 0.0, 0.0));
@@ -186,5 +189,17 @@ vec3 DirectLight(const Light& light, const Intersection& i, const vector<Triangl
 	float r = glm::length(light_dir);
 	float A = 4 * PI * r * r;
 
-	return light.color * max(glm::dot(light_dir, normal), 0.0f) / A;
+	// Check shadows
+	Intersection shadow_i;
+	// Adjust position to avoid self collision
+	float bias = 1e-4;
+	vec3 shadow_ray_start = i.position + light_dir * bias;
+	const Ray shadow_ray = {.s = shadow_ray_start, .d = vec3(light.position - i.position)};
+	ClosestIntersection(shadow_ray, triangles, shadow_i);
+	vec3 shadow_factor(1.0, 1.0, 1.0);
+	if (shadow_i.distance < 1) {
+		shadow_factor = vec3(0., 0., 0.);
+	}
+
+	return shadow_factor * light.color * max(glm::dot(light_dir, normal), 0.0f) / A;
 }
