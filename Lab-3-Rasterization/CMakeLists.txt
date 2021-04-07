@@ -5,12 +5,16 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "-O2 -Wall")
 
-add_executable(Rasterization
-  rasterization.cpp
-  SDL2Auxiliary.cpp
-)
+IF(APPLE)
+  SET(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)
+ENDIF(APPLE)
 
 find_package (SDL2 REQUIRED)
+
+add_executable(Rasterization
+  SDL2Auxiliary.cpp
+  rasterization.cpp
+)
 
 message(STATUS "Lib: ${SDL2_LIBRARIES} , Include: ${SDL2_INCLUDE_DIRS}")
 
@@ -20,5 +24,5 @@ include_directories(
 )
 
 target_link_libraries(Rasterization
-  ${SDL2_LIBRARIES}
+ ${SDL2_LIBRARIES}
 )
