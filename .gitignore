@@ -13,3 +13,5 @@ _deps
 .vscode
 .DS_STORE
 */build/
+
+*.zip
