@@ -124,9 +124,7 @@ void Update (Camera& camera) {
 void Draw (const vector<Triangle>& triangles, const Camera& camera) {
 	screen->clearPixels();
 	
-	cout << "pre draw" << endl;
 	for(int i = 0; i<triangles.size(); i++ ) {
-		if (i > 6) continue;
 		vector<vec3> vertices(3);
 		vertices[0] = triangles[i].v0;
 		vertices[1] = triangles[i].v1;
@@ -134,9 +132,7 @@ void Draw (const vector<Triangle>& triangles, const Camera& camera) {
 		DrawPolygonFill (vertices, camera, triangles[i].color);
 	}
 	
-	cout << "before render" << endl;
 	screen->render();
-	cout << "after render" << endl;
 }
 
 void DrawLine (ivec2 a, ivec2 b, vec3 color) {
