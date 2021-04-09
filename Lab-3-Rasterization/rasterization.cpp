@@ -35,7 +35,10 @@ struct Pixel {
     int x;
 	int y;
 	float z_inv;
+	vec3 position;
+	// Per pixel illumination
 	vec3 color;
+	vec3 normal;
 };
 
 struct Vertex {
@@ -56,7 +59,7 @@ int t;
 
 
 vec3 light_pos(0.0, -0.5, -0.7);
-vec3 light_power = 1.0f*vec3( 1, 1, 1 );
+vec3 light_power = 1.1f*vec3( 1, 1, 1 );
 vec3 indirect_light_power_per_area = 0.3f*vec3( 1, 1, 1 );
 
 // ----------------------------------------------------------------------------
@@ -191,7 +194,9 @@ void Interpolate (Pixel a, Pixel b, vector<Pixel>& result ) {
 			.x = static_cast<int>(glm::round((1 - p) * a.x + p * b.x)),
 			.y = static_cast<int>(glm::round((1 - p) * a.y + p * b.y)),
 			.z_inv = (1 - p) * a.z_inv + p * b.z_inv,
+			.position = (1 - p) * a.position + p * b.position,
 			.color = (1 - p) * a.color + p * b.color,
+			.normal = (1 - p) * a.normal + p * b.normal,
 		};
 		result[i] = res;
 	}
@@ -269,19 +274,14 @@ void DrawPolygonFill (const vector<Vertex>& vertices, const Camera& camera) {
 
 void VertexShader (const Vertex& v, Pixel& p, const Camera& camera) {
 	vec3 position(v.position);
-	vec3 light_position(light_pos);
-	vec3 light_dir = glm::normalize(light_position - position);
-	const mat3 rotation = camera.getRotation ();
 	position -= camera.position;
-	position = position * rotation;
-	light_position -= camera.position;
+	position = position * camera.getRotation ();
 	p.z_inv = 1 / position.z;
 	p.x = FOCAL_LENGTH * position.x / position.z + SCREEN_WIDTH / 2;
 	p.y = FOCAL_LENGTH * position.y / position.z + SCREEN_HEIGHT / 2;
-	
-	vec3 normal = glm::normalize(v.normal);
-	float cosv = glm::max(glm::dot(light_dir, normal), 0.0f);
-	p.color = v.color * (cosv * light_power + indirect_light_power_per_area);
+	p.color = v.color;
+	p.normal = v.normal;
+	p.position = v.position;
 }
 
 void FragmentShader (const Pixel& p) {
@@ -289,6 +289,9 @@ void FragmentShader (const Pixel& p) {
 	int y = p.y;
 	if(x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && p.z_inv > depth_buffer[y][x]) {
 		depth_buffer[y][x] = p.z_inv;
-		screen->putPixel(x, y, p.color); 
+		vec3 light_dir = glm::normalize(light_pos - p.position);
+		float cosv = glm::max(glm::dot(light_dir, p.normal), 0.0f);
+		vec3 color = p.color * (cosv * light_power + indirect_light_power_per_area);
+		screen->putPixel(x, y, color); 
 	}
 }
