@@ -31,11 +31,17 @@ struct Camera {
 	}
 };
 
-struct Pixel
-{
+struct Pixel {
     int x;
 	int y;
 	float z_inv;
+	vec3 color;
+};
+
+struct Vertex {
+	vec3 position;
+	vec3 normal;
+	vec3 color;
 };
 
 // ----------------------------------------------------------------------------
@@ -48,21 +54,26 @@ float depth_buffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 SDL2Aux* screen;
 int t;
 
+
+vec3 light_pos(0.0, -0.5, -0.7);
+vec3 light_power = 1.0f*vec3( 1, 1, 1 );
+vec3 indirect_light_power_per_area = 0.3f*vec3( 1, 1, 1 );
+
 // ----------------------------------------------------------------------------
 // FUNCTIONS
 
 void Update(Camera& camera);
 void Draw(const vector<Triangle>& triangles, const Camera& camera);
 void DrawLine (ivec2 a, ivec2 b, vec3 color);
-void DrawPolygonLine (const vector<vec3>& vertices, const Camera& camera);
-void DrawRows (const vector<Pixel>& left_pixels, const vector<Pixel>& right_pixels, const vec3& color);
-void DrawPolygonFill (const vector<vec3>& vertices, const Camera& camera, const vec3& color);
+void DrawPolygonLine (const vector<Vertex>& vertices, const Camera& camera);
+void DrawRows (const vector<Pixel>& left_pixels, const vector<Pixel>& right_pixels);
+void DrawPolygonFill (const vector<Vertex>& vertices, const Camera& camera);
 void ComputePolygonRows (const vector<Pixel>& polygon, vector<Pixel>& left_pixels, vector<Pixel>& right_pixels);
 void Interpolate (ivec2 a, ivec2 b, vector<ivec2>& result);
 void Interpolate (Pixel a, Pixel b, vector<Pixel>& result);
 
-void VertexShader (const vec3& v, Pixel& p, const Camera& camera);
-void FragmentShader (const Pixel& p, const vec3& color);
+void VertexShader (const Vertex& v, Pixel& p, const Camera& camera);
+void FragmentShader (const Pixel& p);
 
 int main (int argc, char* argv[]) {
 	screen = new SDL2Aux (SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -108,10 +119,10 @@ void Update (Camera& camera) {
 	if(keystate[SDL_SCANCODE_S]) camera.position -= forward * dt / 1000.f;
 	if(keystate[SDL_SCANCODE_D]) camera.position += right * dt / 1000.f;
 	if(keystate[SDL_SCANCODE_A]) camera.position -= right * dt / 1000.f;
-	if(keystate[SDL_SCANCODE_E])
-		;
-	if(keystate[SDL_SCANCODE_Q])
-		;
+	if(keystate[SDL_SCANCODE_T]) light_pos += forward * dt / 1000.0f;
+	if(keystate[SDL_SCANCODE_G]) light_pos -= forward * dt / 1000.0f;
+	if(keystate[SDL_SCANCODE_F]) light_pos -= right * dt / 1000.0f;
+	if(keystate[SDL_SCANCODE_H]) light_pos += right * dt / 1000.0f;
 }
 
 void Draw (const vector<Triangle>& triangles, const Camera& camera) {
@@ -122,11 +133,14 @@ void Draw (const vector<Triangle>& triangles, const Camera& camera) {
 			depth_buffer[y][x] = 0;
 	
 	for(int i = 0; i<triangles.size(); i++ ) {
-		vector<vec3> vertices(3);
-		vertices[0] = triangles[i].v0;
-		vertices[1] = triangles[i].v1;
-		vertices[2] = triangles[i].v2;
-		DrawPolygonFill (vertices, camera, triangles[i].color);
+		vector<Vertex> vertices(3);
+		Vertex v0 = {.position = triangles[i].v0, .normal = triangles[i].normal, .color = triangles[i].color};
+		Vertex v1 = {.position = triangles[i].v1, .normal = triangles[i].normal, .color = triangles[i].color};
+		Vertex v2 = {.position = triangles[i].v2, .normal = triangles[i].normal, .color = triangles[i].color};
+		vertices[0] = v0;
+		vertices[1] = v1;
+		vertices[2] = v2;
+		DrawPolygonFill (vertices, camera);
 	}
 	
 	screen->render();
@@ -142,7 +156,7 @@ void DrawLine (ivec2 a, ivec2 b, vec3 color) {
 	}
 }
 
-void DrawPolygonLine (const vector<vec3>& vertices, const Camera& camera) {
+void DrawPolygonLine (const vector<Vertex>& vertices, const Camera& camera) {
 	vector<Pixel> proj_vertices(vertices.size());
 	for (int i = 0; i < vertices.size(); i++)
 		VertexShader (vertices[i], proj_vertices[i], camera);
@@ -176,7 +190,8 @@ void Interpolate (Pixel a, Pixel b, vector<Pixel>& result ) {
 		Pixel res = {
 			.x = static_cast<int>(glm::round((1 - p) * a.x + p * b.x)),
 			.y = static_cast<int>(glm::round((1 - p) * a.y + p * b.y)),
-			.z_inv = (1 - p) * a.z_inv + p * b.z_inv
+			.z_inv = (1 - p) * a.z_inv + p * b.z_inv,
+			.color = (1 - p) * a.color + p * b.color,
 		};
 		result[i] = res;
 	}
@@ -229,19 +244,19 @@ void ComputePolygonRows (const vector<Pixel>& polygon_pixels,
 	}
 }
 
-void DrawRows (const vector<Pixel>& left_pixels, const vector<Pixel>& right_pixels, const vec3& color) {
+void DrawRows (const vector<Pixel>& left_pixels, const vector<Pixel>& right_pixels) {
 	for (int row = 0; row < left_pixels.size(); row++) {
 		Pixel left = left_pixels[row];
 		Pixel right = right_pixels[row];
 		vector<Pixel> row_pixels(right.x - left.x + 1);
 		Interpolate (left, right, row_pixels);
 		for (int i = 0; i < row_pixels.size(); i++) {
-			FragmentShader (row_pixels[i], color);
+			FragmentShader (row_pixels[i]);
 		}
 	}
 }
 
-void DrawPolygonFill (const vector<vec3>& vertices, const Camera& camera, const vec3& color) {
+void DrawPolygonFill (const vector<Vertex>& vertices, const Camera& camera) {
 	int V = vertices.size();
 	vector<Pixel> vertexPixels( V );
 	for (int i = 0; i < V; i++)
@@ -249,23 +264,31 @@ void DrawPolygonFill (const vector<vec3>& vertices, const Camera& camera, const 
 	vector<Pixel> left_pixels;
 	vector<Pixel> right_pixels;
 	ComputePolygonRows( vertexPixels, left_pixels, right_pixels );
-	DrawRows (left_pixels, right_pixels, color);
+	DrawRows (left_pixels, right_pixels);
 }
 
-void VertexShader (const vec3& v, Pixel& p, const Camera& camera) {
-	vec3 vertex(v);
-	vertex -= camera.position;
-	vertex = vertex * camera.getRotation();
-	p.z_inv = 1 / vertex.z;
-	p.x = FOCAL_LENGTH * vertex.x / vertex.z + SCREEN_WIDTH / 2;
-	p.y = FOCAL_LENGTH * vertex.y / vertex.z + SCREEN_HEIGHT / 2;
+void VertexShader (const Vertex& v, Pixel& p, const Camera& camera) {
+	vec3 position(v.position);
+	vec3 light_position(light_pos);
+	vec3 light_dir = glm::normalize(light_position - position);
+	const mat3 rotation = camera.getRotation ();
+	position -= camera.position;
+	position = position * rotation;
+	light_position -= camera.position;
+	p.z_inv = 1 / position.z;
+	p.x = FOCAL_LENGTH * position.x / position.z + SCREEN_WIDTH / 2;
+	p.y = FOCAL_LENGTH * position.y / position.z + SCREEN_HEIGHT / 2;
+	
+	vec3 normal = glm::normalize(v.normal);
+	float cosv = glm::max(glm::dot(light_dir, normal), 0.0f);
+	p.color = v.color * (cosv * light_power + indirect_light_power_per_area);
 }
 
-void FragmentShader (const Pixel& p, const vec3& color) {
+void FragmentShader (const Pixel& p) {
 	int x = p.x;
 	int y = p.y;
 	if(x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && p.z_inv > depth_buffer[y][x]) {
 		depth_buffer[y][x] = p.z_inv;
-		screen->putPixel(x, y, color); 
+		screen->putPixel(x, y, p.color); 
 	}
 }
