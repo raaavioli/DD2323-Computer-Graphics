@@ -12,7 +12,7 @@
 #include <iostream>
 #include <glm/glm.hpp>
 #include <vector>
-#include "SDL2auxiliary.h"
+#include "SDL2Auxiliary.h"
 
 using namespace std;
 using glm::vec3;

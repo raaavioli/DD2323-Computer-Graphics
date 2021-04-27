@@ -11,16 +11,17 @@ ENDIF(APPLE)
 
 find_package (SDL2 REQUIRED)
 
-add_executable(Rasterization
-  SDL2Auxiliary.cpp
-  rasterization.cpp
-)
-
 message(STATUS "Lib: ${SDL2_LIBRARIES} , Include: ${SDL2_INCLUDE_DIRS}")
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/../glm
+  ${CMAKE_SOURCE_DIR}/../SDL2Auxiliary
   ${SDL2_INCLUDE_DIRS}
+)
+
+add_executable(Rasterization
+  ${CMAKE_SOURCE_DIR}/../SDL2Auxiliary/SDL2Auxiliary.cpp
+  rasterization.cpp
 )
 
 target_link_libraries(Rasterization

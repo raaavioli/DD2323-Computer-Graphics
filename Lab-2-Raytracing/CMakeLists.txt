@@ -9,18 +9,19 @@ IF(APPLE)
   SET(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)
 ENDIF(APPLE)
 
-add_executable(Raytracing
-  raytracing.cpp
-  SDL2Auxiliary.cpp
-)
-
 find_package (SDL2 REQUIRED)
 
 message(STATUS "Lib: ${SDL2_LIBRARIES} , Include: ${SDL2_INCLUDE_DIRS}")
 
 include_directories(
   ${CMAKE_SOURCE_DIR}/../glm
+  ${CMAKE_SOURCE_DIR}/../SDL2Auxiliary
   ${SDL2_INCLUDE_DIRS}
+)
+
+add_executable(Raytracing
+  raytracing.cpp
+  ${CMAKE_SOURCE_DIR}/../SDL2Auxiliary/SDL2Auxiliary.cpp
 )
 
 target_link_libraries(Raytracing
